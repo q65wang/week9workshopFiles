@@ -15,7 +15,9 @@ classifier model.
 2. Add your complete five-class TensorFlow.js export to the model/ folder.
 3. Open the COMPLETE code-emotionalAgent/ folder in VS Code.
 4. With Live Server, open index.html and choose an example.
-5. Click Start webcam inference and permit camera access.
+5. Click Start webcam inference and permit camera access. The live camera
+   preview can run without the model export; classifier inference requires the
+   complete model files in step 2.
 6. In Example 2, test Design test (no model) separately: its inputs are manually
    supplied scores and should not be presented as classification evidence.
 7. Stop camera releases the media stream. Reload after editing code/model files.

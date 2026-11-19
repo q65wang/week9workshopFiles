@@ -7,7 +7,7 @@ const DemoUI = {
       this.setStartEnabled(false);
       const designControls = document.querySelector("#design-controls");
       if (designControls) designControls.hidden = true;
-      this.setStatusMessage("Loading model. Allow camera access when requested.");
+      this.setStatusMessage("Starting camera. Allow access; classifier loads next.");
       actions.onStart();
     };
     document.querySelector("#stop").onclick = () => {
@@ -74,12 +74,14 @@ const DemoUI = {
   },
 
   // Restore usable controls and show a useful error when setup or inference fails.
-  resetAfterError(error) {
+  resetAfterError(error, cameraAvailable = false) {
     console.error(error);
     this.setStartEnabled(true);
     const designControls = document.querySelector("#design-controls");
     if (designControls) designControls.hidden = true;
-    this.setStatusMessage(`Cannot run: ${error.message || error}`);
+    this.setStatusMessage(cameraAvailable
+      ? `Camera preview is live, but inference could not start: ${error.message || error} Use Stop camera to release the webcam.`
+      : `Cannot run: ${error.message || error}`);
   },
 
   // Draw either the actual input frame or a message explaining why it is absent.
@@ -88,7 +90,7 @@ const DemoUI = {
     noStroke();
     fill(234, 236, 231);
     rect(x, y, size, size);
-    if (state.mode === "live" && camera.frame) {
+    if (state.mode !== "design" && camera.stream && camera.frame) {
       image(camera.frame, x, y, size, size);
     } else {
       fill(65);

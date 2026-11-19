@@ -23,17 +23,19 @@ async function startExperience() {
   CameraInput.release();
   const token = ExperienceState.beginLoading();
   scores = {};
+  let cameraReady = false;
   try {
-    // Check/load the trained model first; request camera access only afterward.
-    classifier = await ClassifierModel.loadClassifier(MODEL_URL, LABELS);
-    if (!ExperienceState.isCurrentSession(token)) return;
     if (!(await CameraInput.requestAccess(() =>
       ExperienceState.isCurrentSession(token) && ExperienceState.mode === "loading"))) return;
+    cameraReady = true;
+    if (!ExperienceState.isCurrentSession(token)) return;
+    classifier = await ClassifierModel.loadClassifier(MODEL_URL, LABELS);
+    if (!ExperienceState.isCurrentSession(token)) return;
     if (!ExperienceState.markInferenceLive(token)) return;
     DemoUI.setStatusMessage("WEBCAM INFERENCE: live model scores.");
     classifyNextFrame(token);
   } catch (error) {
-    if (ExperienceState.isCurrentSession(token)) handleExperienceError(error);
+    if (ExperienceState.isCurrentSession(token)) handleExperienceError(error, cameraReady);
   }
 }
 
@@ -74,16 +76,17 @@ function stopExperience() {
   DemoUI.setStatusMessage("Stopped. Camera released.");
 }
 
-function handleExperienceError(error) {
-  // A visible error plus cleanup is preferable to leaving the camera running.
+function handleExperienceError(error, keepCamera = false) {
+  // Keep an already-open camera for preview if model setup fails.
   ExperienceState.stop();
-  CameraInput.release();
-  DemoUI.resetAfterError(error);
+  if (!keepCamera) CameraInput.release();
+  DemoUI.resetAfterError(error, keepCamera);
 }
 
 function draw() {
   // Rendering is separate from inference: p5 redraws this view many times
   // between slower model predictions.
+  if (CameraInput.stream) CameraInput.captureSquareFrame();
   background(255);
   fill(35);
   noStroke();

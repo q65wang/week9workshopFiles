@@ -108,22 +108,26 @@ async function startExperience() {
   // A session token makes a pending load or camera request safe to cancel.
   const token = ExperienceState.beginLoading();
   agent.clearScores();
+  let cameraReady = false;
   try {
-    // The model helper checks the export/labels and waits for ml5 to be ready.
-    classifier = await ClassifierModel.loadClassifier(MODEL_URL, LABELS);
-    if (!ExperienceState.isCurrentSession(token)) return;
     if (
       !(await CameraInput.requestAccess(
         () => ExperienceState.isCurrentSession(token) && ExperienceState.mode === "loading",
       ))
     )
       return;
+    cameraReady = true;
+    if (!ExperienceState.isCurrentSession(token)) return;
+    // Keep the camera preview available even when the optional model export
+    // is missing or fails to load.
+    classifier = await ClassifierModel.loadClassifier(MODEL_URL, LABELS);
+    if (!ExperienceState.isCurrentSession(token)) return;
     if (!ExperienceState.markInferenceLive(token)) return;
     DemoUI.setStatusMessage("WEBCAM INFERENCE: live model scores.");
     // Begin a loop that awaits each prediction before requesting the next one.
     classifyNextFrame(token);
   } catch (error) {
-    if (ExperienceState.isCurrentSession(token)) handleExperienceError(error);
+    if (ExperienceState.isCurrentSession(token)) handleExperienceError(error, cameraReady);
   }
 }
 
@@ -179,18 +183,19 @@ function stopExperience() {
   DemoUI.setStatusMessage("Stopped. Camera released.");
 }
 
-function handleExperienceError(error) {
+function handleExperienceError(error, keepCamera = false) {
   // Treat setup and inference failures as a stopped session so the user can
-  // retry, and avoid leaving the webcam active after an error.
+  // retry. Keep an already-open camera for preview if model setup fails.
   ExperienceState.stop();
-  CameraInput.release();
+  if (!keepCamera) CameraInput.release();
   agent.clearScores();
-  DemoUI.resetAfterError(error);
+  DemoUI.resetAfterError(error, keepCamera);
 }
 
 function draw() {
   // p5 redraws the canvas continuously. Camera, bars and character all use the
   // latest available data, but only recent predictions are treated as current.
+  if (CameraInput.stream) CameraInput.captureSquareFrame();
   background(255);
   noStroke();
   fill(35);
